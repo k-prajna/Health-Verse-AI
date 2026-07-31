@@ -1,0 +1,43 @@
+HealthVerse AI - Install on Windows
+====================================
+
+1. DELETE your old folder:
+   C:\Users\PRAJNA\Desktop\healthverse-ai
+
+2. Extract THIS zip to Desktop so you get:
+   C:\Users\PRAJNA\Desktop\healthverse-ai\
+
+3. Double-click START.bat
+   OR in PowerShell:
+   cd C:\Users\PRAJNA\Desktop\healthverse-ai\backend
+   python main.py
+
+4. Open browser: http://localhost:8000
+   (Do NOT open index.html by double-click)
+
+FEATURES
+--------
+- Login centered + animated character (dances on success)
+- REAL Google OAuth (set Client ID) + 3 demo accounts fallback
+- OTP shows code on screen (use it or 123456)
+- Real camera (allow permission in Chrome)
+- Tulu + Hindi, Kannada, Tamil, Telugu, Malayalam
+- AI chat replies in selected language
+- Voice input (Chrome) — Tulu is text-only (browser limit)
+- Notifications show your email/phone + test alert
+- Profile 4 tabs: Personal | Locker | Alerts | Settings
+- All settings panels work
+- Stethoscope icon
+
+Demo login: demo@healthverse.ai / demo123
+
+ENABLE REAL GOOGLE SIGN-IN
+--------------------------
+1. https://console.cloud.google.com/ → Credentials → Create OAuth client ID
+2. Type: Web application
+3. Origins: http://localhost:8000  and  http://localhost:8080
+4. Copy Client ID
+5. Paste into:
+   - js/app.js          →  const GOOGLE_CLIENT_ID = "YOUR_ID";
+   - backend/auth.py    →  GOOGLE_CLIENT_ID = "YOUR_ID"
+6. Restart backend and refresh browser

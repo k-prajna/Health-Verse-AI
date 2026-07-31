@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthVerse AI — Intelligent Healthcare Report Translator & AI Medical Assistant</title>
+  <meta name="description" content="HealthVerse AI: Translate medical reports, chat with an AI health assistant in English, Hindi, Kannada, Tulu, Tamil, Telugu and more.">
+  <meta name="theme-color" content="#9b7EBD">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%239b7EBD'/%3E%3Ccircle cx='26' cy='20' r='8' fill='none' stroke='white' stroke-width='4'/%3E%3Cline x1='26' y1='28' x2='26' y2='42' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='26' y1='42' x2='42' y2='42' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='42' cy='46' r='4' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Identity Services (real OAuth) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div id="splash-screen" class="screen active">
+    <div class="splash-content">
+      <div class="logo-container">
+        <div class="logo-circle">
+          <i class="fas fa-stethoscope"></i>
+        </div>
+        <h1 class="app-title">HealthVerse AI</h1>
+        <p class="app-tagline">Intelligent Healthcare Report Translator & AI Medical Assistant</p>
+      </div>
+      <div class="loader">
+        <div class="loader-bar"></div>
+      </div>
+      <p class="splash-loading">Loading your health companion...</p>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div id="onboarding-screen" class="screen">
+    <div class="onboarding-container">
+      <div class="onboarding-slides">
+        <div class="onboarding-slide active" data-slide="0">
+          <div class="slide-icon"><i class="fas fa-file-medical"></i></div>
+          <h2>AI Report Analysis</h2>
+          <p>Upload prescriptions or lab reports. Our AI extracts, analyzes, and explains every detail in plain language.</p>
+        </div>
+        <div class="onboarding-slide" data-slide="1">
+          <div class="slide-icon"><i class="fas fa-language"></i></div>
+          <h2>Multi-language Translation</h2>
+          <p>Understand reports in English, Hindi, Kannada, <strong>Tulu</strong>, Tamil, Telugu, Malayalam and many more Indian languages — including full text support for Tulu.</p>
+        </div>
+        <div class="onboarding-slide" data-slide="2">
+          <div class="slide-icon"><i class="fas fa-robot"></i></div>
+          <h2>AI Health Assistant</h2>
+          <p>Chat or speak with your personal AI doctor. Get diet plans, medicine reminders, and personalized advice.</p>
+        </div>
+      </div>
+      <div class="onboarding-dots">
+        <span class="dot active" data-dot="0"></span>
+        <span class="dot" data-dot="1"></span>
+        <span class="dot" data-dot="2"></span>
+      </div>
+      <div class="onboarding-actions">
+        <button class="btn btn-outline" id="skip-onboarding">Skip</button>
+        <button class="btn btn-primary" id="next-onboarding">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-layout">
+      <!-- Animated character -->
+      <div class="auth-character" id="auth-character">
+        <div class="char-body">
+          <div class="char-head">
+            <div class="char-face">
+              <span class="char-eye left"></span>
+              <span class="char-eye right"></span>
+              <span class="char-smile"></span>
+            </div>
+            <div class="char-hair"></div>
+          </div>
+          <div class="char-torso"></div>
+          <div class="char-arms">
+            <span class="char-arm left"></span>
+            <span class="char-arm right"></span>
+          </div>
+          <div class="char-legs">
+            <span class="char-leg left"></span>
+            <span class="char-leg right"></span>
+          </div>
+        </div>
+        <p class="char-speech" id="char-speech">Hi! Let's get you signed in 💜</p>
+      </div>
+
+      <div class="auth-container" id="auth-card">
+      <div class="auth-header">
+        <div class="logo-mini"><i class="fas fa-stethoscope"></i></div>
+        <h2>Welcome to HealthVerse</h2>
+        <p>Sign in to access your intelligent health companion</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Login</button>
+        <button class="auth-tab" data-tab="signup">Sign Up</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="auth-form active">
+        <div class="form-group">
+          <label>Email</label>
+          <div class="input-with-icon">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="login-email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div class="input-with-icon">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="login-password" placeholder="••••••••" required>
+          </div>
+        </div>
+        <div class="form-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remember-me"> Remember Me
+          </label>
+          <a href="#" id="forgot-password">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Login</button>
+        <div class="divider"><span>or continue with</span></div>
+        <div class="social-login">
+          <div id="google-btn-wrapper" style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center">
+            <button type="button" class="btn btn-social" id="google-login" style="width:100%">
+              <i class="fab fa-google"></i> Google
+            </button>
+          </div>
+          <button type="button" class="btn btn-social" id="otp-login">
+            <i class="fas fa-mobile-alt"></i> OTP
+          </button>
+        </div>
+        <p id="google-config-hint" class="hidden" style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:8px">
+          Demo mode — set <code>GOOGLE_CLIENT_ID</code> in js/app.js for real Google accounts
+        </p>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" class="auth-form">
+        <div class="form-group">
+          <label>Full Name</label>
+          <div class="input-with-icon">
+            <i class="fas fa-user"></i>
+            <input type="text" id="signup-name" placeholder="Your name" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <div class="input-with-icon">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="signup-email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div class="input-with-icon">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="signup-password" placeholder="Create password" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <div class="input-with-icon">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="signup-confirm" placeholder="Confirm password" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+      </form>
+
+      <!-- OTP Form (hidden by default) -->
+      <form id="otp-form" class="auth-form">
+        <div class="form-group">
+          <label>Email or Mobile Number</label>
+          <div class="input-with-icon">
+            <i class="fas fa-envelope-open-text"></i>
+            <input type="text" id="otp-mobile" placeholder="you@example.com or +91 98765 43210" required>
+          </div>
+        </div>
+        <div class="form-group" id="otp-code-group" style="display:none;">
+          <label>Enter 6-Digit OTP</label>
+          <div class="input-with-icon">
+            <i class="fas fa-key"></i>
+            <input type="text" id="otp-code" placeholder="6-digit OTP" maxlength="6">
+          </div>
+          <div id="otp-demo-hint" style="font-size:0.8rem;color:var(--primary-dark);margin-top:6px;font-weight:500;"></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="otp-submit">Send OTP</button>
+        <button type="button" class="btn btn-outline btn-block" id="back-to-login" style="margin-top:10px;">Back to Login</button>
+      </form>
+      </div><!-- /.auth-container -->
+    </div><!-- /.auth-layout -->
+  </div>
+
+  <!-- Profile Setup -->
+  <div id="profile-setup-screen" class="screen">
+    <div class="profile-setup-container">
+      <h2>Complete Your Health Profile</h2>
+      <p class="subtitle">Help us personalize your experience</p>
+      <form id="profile-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="profile-name" required>
+          </div>
+          <div class="form-group">
+            <label>Age</label>
+            <input type="number" id="profile-age" min="1" max="120" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="profile-gender" required>
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Blood Group</label>
+            <select id="profile-blood" required>
+              <option value="">Select</option>
+              <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Height (cm)</label>
+            <input type="number" id="profile-height" min="50" max="250">
+          </div>
+          <div class="form-group">
+            <label>Weight (kg)</label>
+            <input type="number" id="profile-weight" min="10" max="300">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Allergies (comma separated)</label>
+          <input type="text" id="profile-allergies" placeholder="e.g. Penicillin, Peanuts">
+        </div>
+        <div class="form-group">
+          <label>Existing Conditions</label>
+          <input type="text" id="profile-diseases" placeholder="e.g. Diabetes, Hypertension">
+        </div>
+        <div class="form-group">
+          <label>Emergency Contact</label>
+          <input type="tel" id="profile-emergency" placeholder="+91 98765 43210">
+        </div>
+        <div class="form-group">
+          <label>Preferred Language</label>
+          <select id="profile-language" required>
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="kn">Kannada</option>
+            <option value="tcy">Tulu</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="mr">Marathi</option>
+            <option value="bn">Bengali</option>
+            <option value="gu">Gujarati</option>
+            <option value="pa">Punjabi</option>
+            <option value="ur">Urdu</option>
+            <option value="or">Odia</option>
+            <option value="as">Assamese</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Save & Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div id="app-shell" class="screen">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-mini"><i class="fas fa-stethoscope"></i></div>
+        <span class="header-title">HealthVerse AI</span>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="notif-btn" title="Notifications">
+          <i class="fas fa-bell"></i>
+          <span class="badge">3</span>
+        </button>
+        <button class="icon-btn" id="sos-btn" title="Emergency SOS">
+          <i class="fas fa-exclamation-triangle"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+      <!-- HOME VIEW -->
+      <div id="view-home" class="view active">
+        <div class="welcome-card">
+          <div class="welcome-text">
+            <h2>Hello, <span id="user-display-name">User</span> 👋</h2>
+            <p>Your health score today</p>
+          </div>
+          <div class="health-score-circle">
+            <svg viewBox="0 0 36 36">
+              <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <path class="circle-progress" stroke-dasharray="78, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <text x="18" y="20.5" class="score-text">78</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-btn" data-action="upload">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span>Upload Report</span>
+          </button>
+          <button class="quick-btn" data-action="chat">
+            <i class="fas fa-comments"></i>
+            <span>AI Chat</span>
+          </button>
+          <button class="quick-btn" data-action="voice">
+            <i class="fas fa-microphone"></i>
+            <span>Voice AI</span>
+          </button>
+          <button class="quick-btn" data-action="sos">
+            <i class="fas fa-ambulance"></i>
+            <span>SOS</span>
+          </button>
+        </div>
+
+        <section class="section">
+          <div class="section-header">
+            <h3>Today's Medicines</h3>
+            <a href="#" class="see-all" data-nav="dashboard">See all</a>
+          </div>
+          <div class="medicine-list" id="today-meds">
+            <div class="med-card">
+              <div class="med-icon morning"><i class="fas fa-sun"></i></div>
+              <div class="med-info">
+                <h4>Metformin 500mg</h4>
+                <p>1 tablet after breakfast</p>
+              </div>
+              <button class="med-check" data-med="1"><i class="fas fa-check"></i></button>
+            </div>
+            <div class="med-card">
+              <div class="med-icon afternoon"><i class="fas fa-cloud-sun"></i></div>
+              <div class="med-info">
+                <h4>Amlodipine 5mg</h4>
+                <p>1 tablet after lunch</p>
+              </div>
+              <button class="med-check" data-med="2"><i class="fas fa-check"></i></button>
+            </div>
+            <div class="med-card">
+              <div class="med-icon night"><i class="fas fa-moon"></i></div>
+              <div class="med-info">
+                <h4>Atorvastatin 10mg</h4>
+                <p>1 tablet at bedtime</p>
+              </div>
+              <button class="med-check" data-med="3"><i class="fas fa-check"></i></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <h3>AI Insights</h3>
+          </div>
+          <div class="insight-cards">
+            <div class="insight-card">
+              <i class="fas fa-chart-line"></i>
+              <p>Your blood pressure readings have improved by 8% this week. Keep up the good work!</p>
+            </div>
+            <div class="insight-card insight-card-interactive">
+              <i class="fas fa-tint"></i>
+              <div class="insight-interactive">
+                <p>Water intake today: <strong id="water-count">1.2</strong> / 2.5 L</p>
+                <div class="insight-mini-bar"><div class="insight-mini-fill" id="water-bar" style="width:48%"></div></div>
+                <button class="btn-log" id="log-water-btn"><i class="fas fa-plus"></i> Log 250ml</button>
+              </div>
+            </div>
+            <div class="insight-card insight-card-interactive">
+              <i class="fas fa-walking"></i>
+              <div class="insight-interactive">
+                <p>Steps today: <strong id="steps-count">5,400</strong> / 7,500</p>
+                <div class="insight-mini-bar"><div class="insight-mini-fill steps-fill" id="steps-bar" style="width:72%"></div></div>
+                <button class="btn-log" id="log-steps-btn"><i class="fas fa-plus"></i> Log 500 steps</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <h3>Upcoming Appointments</h3>
+          </div>
+          <div class="appointment-card">
+            <div class="appt-date">
+              <span class="day">02</span>
+              <span class="month">Aug</span>
+            </div>
+            <div class="appt-info">
+              <h4>Dr. Priya Sharma</h4>
+              <p>Cardiology Follow-up</p>
+              <span class="appt-time"><i class="fas fa-clock"></i> 10:30 AM</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- REPORTS VIEW -->
+      <div id="view-reports" class="view">
+        <div class="view-header">
+          <h2>Health Reports</h2>
+          <button class="btn btn-primary btn-sm" id="upload-report-btn">
+            <i class="fas fa-plus"></i> Upload
+          </button>
+        </div>
+
+        <div class="upload-area" id="upload-area">
+          <div class="upload-zone" id="upload-zone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <h3>Upload Medical Report</h3>
+            <p>PDF, JPG, PNG or capture with camera</p>
+            <div class="upload-buttons">
+              <label class="btn btn-outline btn-sm">
+                <i class="fas fa-file"></i> Choose File
+                <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" hidden>
+              </label>
+              <button class="btn btn-outline btn-sm" id="camera-btn">
+                <i class="fas fa-camera"></i> Camera
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Processing Overlay -->
+        <div id="processing-overlay" class="processing-overlay hidden">
+          <div class="processing-content">
+            <div class="spinner"></div>
+            <h3 id="process-status">Extracting text with OCR...</h3>
+            <p id="process-detail">This may take a few seconds</p>
+          </div>
+        </div>
+
+        <!-- Analysis Result -->
+        <div id="analysis-result" class="analysis-result hidden">
+          <div class="result-header">
+            <h3>AI Analysis Complete</h3>
+            <div class="result-actions">
+              <select id="translate-lang">
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="kn">Kannada</option>
+                <option value="tcy">Tulu</option>
+                <option value="ta">Tamil</option>
+                <option value="te">Telugu</option>
+                <option value="ml">Malayalam</option>
+              </select>
+              <button class="btn btn-outline btn-sm" id="translate-btn"><i class="fas fa-language"></i> Translate</button>
+              <button class="btn btn-outline btn-sm" id="voice-read-btn"><i class="fas fa-volume-up"></i> Read Aloud</button>
+            </div>
+          </div>
+
+          <div class="result-tabs">
+            <button class="result-tab active" data-rtab="summary">Summary</button>
+            <button class="result-tab" data-rtab="details">Details</button>
+            <button class="result-tab" data-rtab="medicines">Medicines</button>
+            <button class="result-tab" data-rtab="recommendations">Advice</button>
+          </div>
+
+          <div id="rtab-summary" class="rtab-content active">
+            <div class="summary-card risk-moderate">
+              <span class="risk-badge">Moderate Risk</span>
+              <h4>Overall Health Status</h4>
+              <p id="summary-text">Based on the uploaded lab report, most values are within normal range. Slight elevation in fasting blood sugar and LDL cholesterol noted. Continue current medication and lifestyle changes.</p>
+            </div>
+            <div class="key-findings">
+              <h4>Key Findings</h4>
+              <ul id="findings-list">
+                <li class="abnormal"><i class="fas fa-exclamation-circle"></i> Fasting Blood Sugar: 118 mg/dL (Slightly High)</li>
+                <li class="normal"><i class="fas fa-check-circle"></i> HbA1c: 6.2% (Near normal)</li>
+                <li class="abnormal"><i class="fas fa-exclamation-circle"></i> LDL Cholesterol: 142 mg/dL (Borderline High)</li>
+                <li class="normal"><i class="fas fa-check-circle"></i> Hemoglobin: 13.8 g/dL (Normal)</li>
+                <li class="normal"><i class="fas fa-check-circle"></i> Creatinine: 0.9 mg/dL (Normal)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="rtab-details" class="rtab-content">
+            <div class="details-table">
+              <table>
+                <thead>
+                  <tr><th>Parameter</th><th>Value</th><th>Reference</th><th>Status</th></tr>
+                </thead>
+                <tbody id="details-body">
+                  <tr><td>Fasting Glucose</td><td>118 mg/dL</td><td>70-100</td><td class="status-warn">High</td></tr>
+                  <tr><td>HbA1c</td><td>6.2%</td><td>&lt;5.7%</td><td class="status-warn">Elevated</td></tr>
+                  <tr><td>Total Cholesterol</td><td>210 mg/dL</td><td>&lt;200</td><td class="status-warn">Borderline</td></tr>
+                  <tr><td>LDL</td><td>142 mg/dL</td><td>&lt;100</td><td class="status-warn">High</td></tr>
+                  <tr><td>HDL</td><td>48 mg/dL</td><td>&gt;40</td><td class="status-ok">Normal</td></tr>
+                  <tr><td>Triglycerides</td><td>145 mg/dL</td><td>&lt;150</td><td class="status-ok">Normal</td></tr>
+                  <tr><td>Hemoglobin</td><td>13.8 g/dL</td><td>12-16</td><td class="status-ok">Normal</td></tr>
+                  <tr><td>Creatinine</td><td>0.9 mg/dL</td><td>0.6-1.2</td><td class="status-ok">Normal</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="rtab-medicines" class="rtab-content">
+            <div class="med-list-full" id="med-list-full">
+              <div class="med-item">
+                <h4>Metformin 500 mg</h4>
+                <p><strong>Dosage:</strong> 1 tablet twice daily after meals</p>
+                <p><strong>Purpose:</strong> Controls blood sugar levels in type 2 diabetes</p>
+                <p><strong>Side effects:</strong> Nausea, diarrhea (usually temporary)</p>
+              </div>
+              <div class="med-item">
+                <h4>Amlodipine 5 mg</h4>
+                <p><strong>Dosage:</strong> 1 tablet once daily</p>
+                <p><strong>Purpose:</strong> Lowers blood pressure</p>
+                <p><strong>Side effects:</strong> Ankle swelling, dizziness</p>
+              </div>
+              <div class="med-item">
+                <h4>Atorvastatin 10 mg</h4>
+                <p><strong>Dosage:</strong> 1 tablet at night</p>
+                <p><strong>Purpose:</strong> Reduces cholesterol</p>
+                <p><strong>Side effects:</strong> Muscle pain (rare)</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="rtab-recommendations" class="rtab-content">
+            <div class="rec-grid">
+              <div class="rec-card">
+                <i class="fas fa-utensils"></i>
+                <h4>Diet Plan</h4>
+                <ul>
+                  <li>Prefer whole grains, millets over white rice</li>
+                  <li>Include leafy greens & fiber-rich foods</li>
+                  <li>Limit sweets, fried items & processed food</li>
+                  <li>Small frequent meals recommended</li>
+                </ul>
+              </div>
+              <div class="rec-card">
+                <i class="fas fa-walking"></i>
+                <h4>Exercise</h4>
+                <ul>
+                  <li>30–45 min brisk walk daily</li>
+                  <li>Light yoga or stretching in morning</li>
+                  <li>Avoid heavy lifting if BP is high</li>
+                </ul>
+              </div>
+              <div class="rec-card">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h4>Warning Signs</h4>
+                <ul>
+                  <li>Sudden dizziness or chest pain</li>
+                  <li>Excessive thirst or frequent urination</li>
+                  <li>Unexplained fatigue or blurred vision</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Past Reports -->
+        <div class="past-reports" id="past-reports">
+          <h3>Recent Reports</h3>
+          <div class="report-list">
+            <div class="report-item" data-report="1">
+              <div class="report-icon"><i class="fas fa-file-medical"></i></div>
+              <div class="report-info">
+                <h4>Complete Blood Count + Lipid Profile</h4>
+                <p>Uploaded 3 days ago • Analyzed</p>
+              </div>
+              <i class="fas fa-chevron-right"></i>
+            </div>
+            <div class="report-item" data-report="2">
+              <div class="report-icon"><i class="fas fa-prescription"></i></div>
+              <div class="report-info">
+                <h4>Prescription — Dr. Sharma</h4>
+                <p>Uploaded 1 week ago • Translated to Hindi</p>
+              </div>
+              <i class="fas fa-chevron-right"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI CHAT VIEW -->
+      <div id="view-chat" class="view">
+        <div class="chat-header">
+          <div class="chat-header-left">
+            <h2>AI Medical Assistant</h2>
+            <span class="chat-lang-badge" id="chat-lang-badge" title="Current AI language">🌐 English</span>
+          </div>
+          <div class="chat-header-right">
+            <select id="chat-lang-switcher" class="chat-lang-select" title="Switch AI language">
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+              <option value="kn">ಕನ್ನಡ</option>
+              <option value="tcy">ತುಳು</option>
+              <option value="ta">தமிழ்</option>
+              <option value="te">తెలుగు</option>
+              <option value="ml">മലയാളം</option>
+              <option value="mr">मराठी</option>
+              <option value="bn">বাংলা</option>
+            </select>
+            <button class="icon-btn" id="voice-toggle" title="Voice mode">
+              <i class="fas fa-microphone"></i>
+            </button>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="message bot">
+            <div class="msg-avatar"><i class="fas fa-robot"></i></div>
+            <div class="msg-bubble">
+              Hello! I'm your HealthVerse AI assistant. I can explain your reports, medicines, diet, and answer any health questions. How can I help you today?
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <button class="icon-btn" id="chat-voice-btn"><i class="fas fa-microphone"></i></button>
+          <input type="text" id="chat-input" placeholder="Ask about your health, medicines, diet...">
+          <button class="icon-btn send-btn" id="chat-send"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <div class="quick-questions">
+          <button class="q-chip" data-q="What does my report mean?">Explain my report</button>
+          <button class="q-chip" data-q="What foods should I avoid?">Foods to avoid</button>
+          <button class="q-chip" data-q="Explain Metformin">About Metformin</button>
+          <button class="q-chip" data-q="Can I eat rice?">Can I eat rice?</button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD VIEW -->
+      <div id="view-dashboard" class="view">
+        <div class="view-header">
+          <h2>Health Dashboard</h2>
+        </div>
+        <div class="dash-score-card">
+          <h3>Health Score</h3>
+          <div class="big-score">78</div>
+          <p>Good • Improved +5 this week</p>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <h4><i class="fas fa-pills"></i> Medicine Adherence</h4>
+            <div class="progress-bar"><div class="progress-fill" style="width:85%"></div></div>
+            <p>85% this week</p>
+          </div>
+          <div class="dash-card">
+            <h4><i class="fas fa-tint"></i> Water Intake</h4>
+            <div class="progress-bar"><div class="progress-fill water" style="width:60%"></div></div>
+            <p>1.5 / 2.5 L today</p>
+          </div>
+          <div class="dash-card">
+            <h4><i class="fas fa-walking"></i> Steps</h4>
+            <div class="progress-bar"><div class="progress-fill steps" style="width:72%"></div></div>
+            <p>5,400 / 7,500 steps</p>
+          </div>
+          <div class="dash-card">
+            <h4><i class="fas fa-bed"></i> Sleep</h4>
+            <div class="progress-bar"><div class="progress-fill sleep" style="width:90%"></div></div>
+            <p>7.2 hrs last night</p>
+          </div>
+        </div>
+        <section class="section">
+          <h3>Daily Routine Suggestions</h3>
+          <div class="routine-list">
+            <div class="routine-item"><span class="time">7:00 AM</span> Wake up + glass of warm water</div>
+            <div class="routine-item"><span class="time">7:30 AM</span> 20 min yoga / stretching</div>
+            <div class="routine-item"><span class="time">8:30 AM</span> Breakfast + Metformin</div>
+            <div class="routine-item"><span class="time">12:30 PM</span> Lunch + Amlodipine</div>
+            <div class="routine-item"><span class="time">5:00 PM</span> Evening walk 30–40 min</div>
+            <div class="routine-item"><span class="time">9:00 PM</span> Dinner (light)</div>
+            <div class="routine-item"><span class="time">10:00 PM</span> Atorvastatin + sleep by 10:30</div>
+          </div>
+        </section>
+      </div>
+
+      <!-- PROFILE VIEW — 4 tabs -->
+      <div id="view-profile" class="view">
+        <div class="profile-header-card">
+          <div class="avatar"><i class="fas fa-user"></i></div>
+          <h2 id="profile-view-name">User</h2>
+          <p id="profile-view-details">—</p>
+        </div>
+
+        <div class="profile-tabs">
+          <button class="profile-tab active" data-ptab="personal"><i class="fas fa-user"></i> Personal</button>
+          <button class="profile-tab" data-ptab="locker"><i class="fas fa-lock"></i> Locker</button>
+          <button class="profile-tab" data-ptab="notifications"><i class="fas fa-bell"></i> Alerts</button>
+          <button class="profile-tab" data-ptab="settings"><i class="fas fa-cog"></i> Settings</button>
+        </div>
+
+        <!-- Tab: Personal Info -->
+        <div id="ptab-personal" class="ptab-content active">
+          <div class="profile-menu">
+            <button class="profile-menu-item" data-action="edit-profile">
+              <i class="fas fa-user-edit"></i> Edit Profile
+            </button>
+            <button class="profile-menu-item" data-action="language">
+              <i class="fas fa-language"></i> Language
+            </button>
+            <div class="info-card" id="personal-info-summary">
+              <p><strong>Blood Group:</strong> <span id="pi-blood">—</span></p>
+              <p><strong>Allergies:</strong> <span id="pi-allergies">—</span></p>
+              <p><strong>Conditions:</strong> <span id="pi-diseases">—</span></p>
+              <p><strong>Emergency:</strong> <span id="pi-emergency">—</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Health Locker -->
+        <div id="ptab-locker" class="ptab-content">
+          <div id="profile-locker-list" class="report-list">
+            <div class="report-item">
+              <div class="report-icon"><i class="fas fa-file-medical"></i></div>
+              <div class="report-info"><h4>Complete Blood Count + Lipid</h4><p>Stored securely</p></div>
+            </div>
+            <div class="report-item">
+              <div class="report-icon"><i class="fas fa-prescription"></i></div>
+              <div class="report-info"><h4>Prescription — Dr. Sharma</h4><p>Stored securely</p></div>
+            </div>
+            <div class="report-item">
+              <div class="report-icon"><i class="fas fa-comments"></i></div>
+              <div class="report-info"><h4>Chat history</h4><p>Encrypted</p></div>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-block" data-action="locker" style="margin-top:12px">
+            <i class="fas fa-folder-open"></i> Open Full Locker
+          </button>
+        </div>
+
+        <!-- Tab: Notifications -->
+        <div id="ptab-notifications" class="ptab-content">
+          <div class="profile-menu">
+            <button class="profile-menu-item" data-action="notifications">
+              <i class="fas fa-bell"></i> Notification Settings
+            </button>
+            <div class="info-card">
+              <p>Reminders go to the email/phone you set.</p>
+              <p><strong>Email:</strong> <span id="pi-notif-email">Not set</span></p>
+              <p><strong>Phone:</strong> <span id="pi-notif-phone">Not set</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Settings -->
+        <div id="ptab-settings" class="ptab-content">
+          <div class="profile-menu">
+            <button class="profile-menu-item" data-action="voice-settings">
+              <i class="fas fa-volume-up"></i> Voice Settings
+            </button>
+            <button class="profile-menu-item" data-action="privacy">
+              <i class="fas fa-shield-alt"></i> Privacy & Security
+            </button>
+            <button class="profile-menu-item" data-action="theme">
+              <i class="fas fa-moon"></i> Dark Mode
+            </button>
+            <button class="profile-menu-item logout" data-action="logout">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-view="home">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" data-view="reports">
+        <i class="fas fa-file-medical"></i>
+        <span>Reports</span>
+      </button>
+      <button class="nav-item" data-view="chat">
+        <i class="fas fa-comments"></i>
+        <span>AI Chat</span>
+      </button>
+      <button class="nav-item" data-view="dashboard">
+        <i class="fas fa-chart-pie"></i>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-view="profile">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- SOS Modal -->
+  <div id="sos-modal" class="modal hidden">
+    <div class="modal-content sos-content">
+      <div class="sos-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <h2>Emergency SOS</h2>
+      <p>This will share your location and medical profile with emergency contacts and nearby hospitals.</p>
+      <div class="sos-info">
+        <p><strong>Blood Group:</strong> <span id="sos-blood">—</span></p>
+        <p><strong>Allergies:</strong> <span id="sos-allergies">—</span></p>
+        <p><strong>Emergency Contact:</strong> <span id="sos-contact">—</span></p>
+      </div>
+      <div class="sos-actions">
+        <button class="btn btn-danger btn-block" id="confirm-sos">Activate SOS</button>
+        <button class="btn btn-outline btn-block" id="cancel-sos">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Camera Modal (real getUserMedia) -->
+  <div id="camera-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Camera Capture</h3>
+      <p class="modal-desc">Allow camera permission to scan your medical report</p>
+      <div class="camera-preview" id="camera-preview-box">
+        <video id="camera-video" autoplay playsinline style="display:none;"></video>
+        <div id="camera-placeholder">
+          <i class="fas fa-camera fa-3x"></i>
+          <p>Starting camera...</p>
+        </div>
+        <canvas id="camera-canvas" style="display:none;"></canvas>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="capture-btn"><i class="fas fa-camera"></i> Capture Report</button>
+        <button class="btn btn-outline" id="close-camera">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Account Picker Modal -->
+  <div id="google-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3><i class="fab fa-google" style="color:#4285F4"></i> Choose a Google Account</h3>
+      <p class="modal-desc">Select a Google account or enter your Gmail address below:</p>
+      <div class="google-accounts" id="google-accounts-list">
+        <button class="google-account" data-name="Priya Sharma" data-email="priya.sharma@gmail.com">
+          <div class="ga-avatar">P</div>
+          <div class="ga-info"><h4>Priya Sharma</h4><p>priya.sharma@gmail.com</p></div>
+        </button>
+        <button class="google-account" data-name="Rahul Kumar" data-email="rahul.kumar@gmail.com">
+          <div class="ga-avatar">R</div>
+          <div class="ga-info"><h4>Rahul Kumar</h4><p>rahul.kumar@gmail.com</p></div>
+        </button>
+        <button class="google-account" data-name="Ananya Rao" data-email="ananya.rao@gmail.com">
+          <div class="ga-avatar">A</div>
+          <div class="ga-info"><h4>Ananya Rao</h4><p>ananya.rao@gmail.com</p></div>
+        </button>
+      </div>
+
+      <div class="custom-google-signin" style="margin-bottom:15px;padding-top:12px;border-top:1px solid var(--border)">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px">Or Sign In with your Gmail:</label>
+        <div style="display:flex;gap:8px">
+          <input type="email" id="custom-google-email" placeholder="your.name@gmail.com" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem">
+          <button type="button" class="btn btn-primary" id="custom-google-submit" style="padding:10px 14px;white-space:nowrap;font-size:0.85rem">
+            <i class="fab fa-google"></i> Sign In
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-outline btn-block" id="close-google">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Language Settings Modal -->
+  <div id="language-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Language Settings</h3>
+      <p class="modal-desc">App language & AI assistant language</p>
+      <div class="settings-section">
+        <div class="settings-row">
+          <span>Preferred Language</span>
+          <select id="settings-language">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="kn">Kannada</option>
+            <option value="tcy">Tulu</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="mr">Marathi</option>
+            <option value="bn">Bengali</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span>AI Chat Language</span>
+          <select id="settings-chat-lang">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="kn">Kannada</option>
+            <option value="tcy">Tulu</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="save-language">Save</button>
+      <button class="btn btn-outline btn-block" id="close-language" style="margin-top:8px">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Voice Settings Modal -->
+  <div id="voice-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Voice Settings</h3>
+      <div class="settings-section">
+        <div class="settings-row">
+          <span>Voice Gender</span>
+          <select id="voice-gender">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span>Speech Speed</span>
+          <select id="voice-speed">
+            <option value="0.75">Slow</option>
+            <option value="1" selected>Normal</option>
+            <option value="1.25">Fast</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span>Voice Input (Speech-to-Text)</span>
+          <button type="button" class="toggle-switch on" id="toggle-stt"></button>
+        </div>
+        <div class="settings-row">
+          <span>Read AI replies aloud</span>
+          <button type="button" class="toggle-switch" id="toggle-tts-auto"></button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="save-voice">Save</button>
+      <button class="btn btn-outline btn-block" id="close-voice" style="margin-top:8px">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Notifications Modal -->
+  <div id="notif-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Notification Settings</h3>
+      <p class="modal-desc">Reminders will be sent to your email / phone</p>
+      <div class="settings-section">
+        <div class="form-group">
+          <label>Email for notifications</label>
+          <input type="email" id="notif-email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>Phone for SMS alerts</label>
+          <input type="tel" id="notif-phone" placeholder="+91 98765 43210">
+        </div>
+        <div class="settings-row">
+          <span>Medicine reminders</span>
+          <button type="button" class="toggle-switch on" id="toggle-med-notif"></button>
+        </div>
+        <div class="settings-row">
+          <span>Appointment reminders</span>
+          <button type="button" class="toggle-switch on" id="toggle-appt-notif"></button>
+        </div>
+        <div class="settings-row">
+          <span>Water intake alerts</span>
+          <button type="button" class="toggle-switch on" id="toggle-water-notif"></button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="save-notif">Save & Send Test Alert</button>
+      <div class="notif-log" id="notif-log"></div>
+      <button class="btn btn-outline btn-block" id="close-notif" style="margin-top:8px">Close</button>
+    </div>
+  </div>
+
+  <!-- Privacy Modal -->
+  <div id="privacy-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Privacy & Security</h3>
+      <div class="settings-section">
+        <div class="settings-row"><span>End-to-end encryption</span><span style="color:var(--success)">Enabled</span></div>
+        <div class="settings-row"><span>HIPAA-inspired practices</span><span style="color:var(--success)">Active</span></div>
+        <div class="settings-row"><span>Data stored locally (SQLite)</span><span style="color:var(--success)">Yes</span></div>
+        <div class="settings-row">
+          <span>Share anonymized insights</span>
+          <button type="button" class="toggle-switch" id="toggle-share"></button>
+        </div>
+        <div class="settings-row">
+          <span>Biometric lock (demo)</span>
+          <button type="button" class="toggle-switch" id="toggle-bio"></button>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-block" id="export-data">Export My Data</button>
+      <button class="btn btn-outline btn-block" id="close-privacy" style="margin-top:8px">Close</button>
+    </div>
+  </div>
+
+  <!-- Health Locker Modal -->
+  <div id="locker-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Digital Health Locker</h3>
+      <p class="modal-desc">Your securely stored reports & history</p>
+      <div id="locker-list" class="report-list" style="max-height:240px;overflow-y:auto">
+        <p style="color:var(--text-muted);font-size:0.85rem">No items yet. Upload reports to store them here.</p>
+      </div>
+      <button class="btn btn-outline btn-block" id="close-locker" style="margin-top:12px">Close</button>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
