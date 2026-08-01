@@ -172,7 +172,7 @@ const App = {
       water: "रोज २.५ ते ३ लिटर पाणी प्या.",
       greeting: "नमस्कार! मी आपला HealthVerse AI वैद्यकीय सहाय्यक आहे.",
       thanks: "धन्यवाद! आरोग्याची काळजी घ्या.",
-      default: "मी आपला HealthVerse AI सहाय्यक आहे."
+
     }
   },
 
@@ -740,7 +740,7 @@ const App = {
     if (codeGroup && (codeGroup.style.display === 'none' || !codeGroup.style.display)) {
       const res = await API.request('POST', '/auth/otp/send', { phone: target });
       const otpCode = res?.demo_otp || '123456';
-      
+
       codeGroup.style.display = 'block';
       if (submitBtn) submitBtn.textContent = 'Verify OTP & Login';
       if (hintEl) hintEl.textContent = `🔑 Demo OTP code: ${otpCode} (or 123456)`;
@@ -793,10 +793,10 @@ const App = {
 
   async completeGoogleSignIn(name, email, credential = null) {
     document.getElementById('google-modal')?.classList.add('hidden');
-    
+
     const body = credential ? { credential } : { name, email };
     const res = await API.request('POST', '/auth/google', body);
-    
+
     if (res && res.ok && res.token) {
       localStorage.setItem('hv_token', res.token);
       this.state.user = res.user;
