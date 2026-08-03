@@ -1,24 +1,31 @@
 """
-HealthVerse AI — Authentication (JWT + salted password hash)
-Uses only stdlib + PyJWT (already installed in the environment)
+HealthVerse AI — Authentication (JWT + salted password hash + email OTP)
 """
 import hashlib
+import re
 import secrets
+import smtplib
 import time
 from datetime import datetime, timedelta
+from email.message import EmailMessage
+from os import getenv
 
 try:
     import jwt
 except ImportError:
     jwt = None
 
-# Secret key for demo — change in production
-JWT_SECRET = "healthverse-ai-demo-secret-key-change-in-prod-2026"
+JWT_SECRET = getenv("JWT_SECRET", "healthverse-ai-demo-secret-key-change-in-prod-2026")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_HOURS = 72
+JWT_EXPIRE_HOURS = int(getenv("JWT_EXPIRE_HOURS", "72"))
+OTP_TTL_SECONDS = int(getenv("OTP_TTL_SECONDS", "300"))
+OTP_MAX_ATTEMPTS = int(getenv("OTP_MAX_ATTEMPTS", "5"))
+OTP_RESEND_COOLDOWN_SECONDS = int(getenv("OTP_RESEND_COOLDOWN_SECONDS", "30"))
+_otp_resend_state = {}
 
-# Simple in-memory OTP store (phone → {code, expires})
-_otp_store = {}
+
+def is_valid_email(email: str) -> bool:
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email or ""))
 
 
 def hash_password(password: str, salt: str = None) -> str:
@@ -37,6 +44,20 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
+def is_strong_password(password: str) -> bool:
+    if not password or len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"\d", password):
+        return False
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return False
+    return True
+
+
 def create_token(user_id: int, name: str, email: str = None) -> str:
     payload = {
         "sub": user_id,
@@ -47,7 +68,6 @@ def create_token(user_id: int, name: str, email: str = None) -> str:
     }
     if jwt:
         return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    # Fallback: simple base64-ish token if PyJWT missing
     import base64, json
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
@@ -62,30 +82,59 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
-def generate_otp(phone: str) -> str:
-    code = f"{secrets.randbelow(10**6):06d}"
-    # For demo always allow 123456 as well
-    _otp_store[phone] = {
-        "code": code,
-        "expires": time.time() + 300  # 5 min
-    }
-    return code
+def hash_otp(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
-def verify_otp(phone: str, code: str) -> bool:
-    # Always accept demo code
-    if code == "123456":
-        return True
-    entry = _otp_store.get(phone)
-    if not entry:
+def verify_otp_code(code: str, stored_hash: str) -> bool:
+    if not code or not stored_hash:
         return False
-    if time.time() > entry["expires"]:
-        _otp_store.pop(phone, None)
+    return hash_otp(code) == stored_hash
+
+
+def generate_otp_code() -> str:
+    return f"{secrets.randbelow(10**6):06d}"
+
+
+def can_resend_otp(email: str) -> bool:
+    now = time.time()
+    last = _otp_resend_state.get((email or "").lower())
+    if last and now - last < OTP_RESEND_COOLDOWN_SECONDS:
         return False
-    if entry["code"] == code:
-        _otp_store.pop(phone, None)
+    return True
+
+
+def record_otp_resend(email: str) -> None:
+    _otp_resend_state[(email or "").lower()] = time.time()
+
+
+def send_otp_email(to_email: str, otp_code: str) -> bool:
+    smtp_host = getenv("SMTP_HOST")
+    smtp_port = getenv("SMTP_PORT")
+    smtp_username = getenv("SMTP_USERNAME")
+    smtp_password = getenv("SMTP_PASSWORD")
+    email_from = getenv("EMAIL_FROM", smtp_username or "no-reply@healthverse.ai")
+
+    if not smtp_host or not smtp_port or not smtp_username or not smtp_password:
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = "HealthVerse Insight — Your Login Verification Code"
+    msg["From"] = email_from
+    msg["To"] = to_email
+    msg.set_content(
+        f"Hello,\n\nYour HealthVerse Insight login verification code is:\n\n{otp_code}\n\n"
+        "This code will expire in 5 minutes.\n\nIf you did not attempt to log in, please secure your account.\n\nRegards,\nHealthVerse Insight Team"
+    )
+
+    try:
+        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
         return True
-    return False
+    except Exception:
+        return False
 
 
 # ── Google OAuth ID Token verification ─────────────────

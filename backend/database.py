@@ -17,18 +17,61 @@ def get_conn():
     return conn
 
 
+def ensure_column_exists(conn, table_name, column_name, column_def):
+    columns = [row[1] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()]
+    if column_name not in columns:
+        if "DEFAULT" in column_def.upper():
+            def_type = column_def.split("DEFAULT", 1)[0].strip()
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {def_type}")
+        else:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+
+
+def backfill_user_columns(conn):
+    conn.execute("UPDATE users SET is_email_verified = 1 WHERE is_email_verified IS NULL")
+    conn.execute("UPDATE users SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = ''")
+
+
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = get_conn()
     cur = conn.cursor()
 
+    users_exists = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").fetchone()
+    if not users_exists:
+        cur.executescript("""
+        CREATE TABLE users (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            email       TEXT UNIQUE,
+            phone       TEXT UNIQUE,
+            password_hash TEXT,
+            name        TEXT NOT NULL,
+            is_email_verified INTEGER DEFAULT 0,
+            created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at  TEXT DEFAULT (datetime('now'))
+        );
+        """)
+    else:
+        ensure_column_exists(conn, "users", "is_email_verified", "INTEGER")
+        ensure_column_exists(conn, "users", "updated_at", "TEXT")
+        backfill_user_columns(conn)
+
     cur.executescript("""
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS otp_verifications (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        email       TEXT UNIQUE,
-        phone       TEXT UNIQUE,
-        password_hash TEXT,
-        name        TEXT NOT NULL,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        otp_hash    TEXT NOT NULL,
+        expires_at  TEXT NOT NULL,
+        attempts    INTEGER DEFAULT 0,
+        verified    INTEGER DEFAULT 0,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token       TEXT NOT NULL,
+        expires_at  TEXT NOT NULL,
         created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -115,8 +158,8 @@ def create_user(name, email=None, phone=None, password_hash=None):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO users (name, email, phone, password_hash) VALUES (?, ?, ?, ?)",
-        (name, email, phone, password_hash)
+        "INSERT INTO users (name, email, phone, password_hash, is_email_verified, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+        (name, email, phone, password_hash, 1 if email else 0)
     )
     uid = cur.lastrowid
     # empty profile + metrics
@@ -162,6 +205,72 @@ def get_user_by_id(uid):
     row = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     conn.close()
     return row_to_dict(row)
+
+
+def update_user_password(uid, password_hash):
+    conn = get_conn()
+    conn.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?", (password_hash, uid))
+    conn.commit()
+    conn.close()
+
+
+def save_otp(user_id, otp_hash, expires_at):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM otp_verifications WHERE user_id = ?", (user_id,))
+    cur.execute(
+        "INSERT INTO otp_verifications (user_id, otp_hash, expires_at, attempts, verified) VALUES (?, ?, ?, 0, 0)",
+        (user_id, otp_hash, expires_at)
+    )
+    oid = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return oid
+
+
+def get_active_otp(user_id):
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM otp_verifications WHERE user_id = ? AND verified = 0 ORDER BY id DESC LIMIT 1",
+        (user_id,)
+    ).fetchone()
+    conn.close()
+    return row_to_dict(row)
+
+
+def increment_otp_attempts(otp_id):
+    conn = get_conn()
+    conn.execute("UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = ?", (otp_id,))
+    conn.commit()
+    conn.close()
+
+
+def mark_otp_used(otp_id):
+    conn = get_conn()
+    conn.execute("UPDATE otp_verifications SET verified = 1 WHERE id = ?", (otp_id,))
+    conn.commit()
+    conn.close()
+
+
+def create_session(user_id, token, expires_at):
+    conn = get_conn()
+    conn.execute("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)", (user_id, token, expires_at))
+    conn.commit()
+    conn.close()
+
+
+def get_session(token):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM sessions WHERE token = ?", (token,)).fetchone()
+    conn.close()
+    return row_to_dict(row)
+
+
+def invalidate_sessions(user_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
 
 
 # ── Profile ────────────────────────────────────────────
