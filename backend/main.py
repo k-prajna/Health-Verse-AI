@@ -15,6 +15,7 @@ import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime, timedelta
 
 # Local modules
 sys.path.insert(0, str(Path(__file__).parent))
@@ -24,7 +25,7 @@ import ai_service
 
 # ── Config ─────────────────────────────────────────────
 HOST = "0.0.0.0"
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 FRONTEND_DIR = Path(__file__).parent.parent  # healthverse-ai/
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -210,17 +211,28 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 name = (body.get("name") or "").strip()
                 email = (body.get("email") or "").strip().lower()
                 password = body.get("password") or ""
+                confirm_password = body.get("confirm_password") or ""
                 if not name or not email or not password:
                     self._error("name, email and password are required")
                     return
+                if not auth.is_valid_email(email):
+                    self._error("Please enter a valid email address")
+                    return
+                if password != confirm_password:
+                    self._error("Passwords do not match")
+                    return
+                if not auth.is_strong_password(password):
+                    self._error("Password must be at least 8 characters, include uppercase, lowercase, number, and a symbol")
+                    return
                 if db.get_user_by_email(email):
-                    self._error("Email already registered", 409)
+                    self._error("This email is already registered. Please log in using your existing account.", 409)
                     return
                 pw_hash = auth.hash_password(password)
                 uid = db.create_user(name=name, email=email, password_hash=pw_hash)
                 token = auth.create_token(uid, name, email)
                 self._json_response({
                     "ok": True,
+                    "status": "SUCCESS",
                     "token": token,
                     "user": {"id": uid, "name": name, "email": email}
                 }, 201)
@@ -229,6 +241,9 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             if path == "/api/auth/login":
                 email = (body.get("email") or "").strip().lower()
                 password = body.get("password") or ""
+                if not auth.is_valid_email(email):
+                    self._error("Please enter a valid email address")
+                    return
                 user = db.get_user_by_email(email)
                 if not user or not user.get("password_hash"):
                     self._error("Invalid email or password", 401)
@@ -236,11 +251,53 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 if not auth.verify_password(password, user["password_hash"]):
                     self._error("Invalid email or password", 401)
                     return
+                otp_code = auth.generate_otp_code()
+                otp_hash = auth.hash_otp(otp_code)
+                expires_at = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                db.save_otp(user["id"], otp_hash, expires_at)
+                auth.send_otp_email(user.get("email"), otp_code)
+                self._json_response({
+                    "ok": True,
+                    "status": "OTP_REQUIRED",
+                    "message": "Verification code sent to your registered email.",
+                    "user": {"id": user["id"], "name": user["name"], "email": user.get("email")}
+                })
+                return
+
+            if path == "/api/auth/verify-otp":
+                email = (body.get("email") or "").strip().lower()
+                code = (body.get("code") or "").strip()
+                if not email or not code:
+                    self._error("email and code are required")
+                    return
+                user = db.get_user_by_email(email)
+                if not user:
+                    self._error("Invalid email or password", 401)
+                    return
+                otp = db.get_active_otp(user["id"])
+                if not otp:
+                    self._error("Your verification code has expired. Please request a new code.", 401)
+                    return
+                if int(otp.get("attempts", 0)) >= auth.OTP_MAX_ATTEMPTS:
+                    self._error("Too many incorrect attempts. Please request a new verification code.", 401)
+                    return
+                if datetime.utcnow() > datetime.strptime(otp["expires_at"], "%Y-%m-%d %H:%M:%S"):
+                    self._error("Your verification code has expired. Please request a new code.", 401)
+                    return
+                if not auth.verify_otp_code(code, otp["otp_hash"]):
+                    db.increment_otp_attempts(otp["id"])
+                    self._error("Invalid verification code. Please try again.", 401)
+                    return
+                db.mark_otp_used(otp["id"])
                 token = auth.create_token(user["id"], user["name"], user.get("email"))
+                expires_at = (datetime.utcnow() + timedelta(hours=auth.JWT_EXPIRE_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
+                db.create_session(user["id"], token, expires_at)
                 profile = db.get_profile(user["id"])
                 self._json_response({
                     "ok": True,
-                    "token": token,
+                    "status": "SUCCESS",
+                    "access_token": token,
+                    "token_type": "bearer",
                     "user": {
                         "id": user["id"],
                         "name": user["name"],
@@ -250,47 +307,74 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 })
                 return
 
-            if path == "/api/auth/otp/send":
-                phone = (body.get("phone") or "").strip()
-                if not phone:
-                    self._error("phone is required")
+            if path == "/api/auth/resend-otp":
+                email = (body.get("email") or "").strip().lower()
+                if not email:
+                    self._error("email is required")
                     return
-                code = auth.generate_otp(phone)
-                # In production: send SMS. For demo we return the code.
-                self._json_response({
-                    "ok": True,
-                    "message": "OTP sent",
-                    "demo_otp": code,          # remove in production
-                    "hint": "You can also use 123456"
-                })
+                if not auth.is_valid_email(email):
+                    self._error("Please enter a valid email address")
+                    return
+                if not auth.can_resend_otp(email):
+                    self._error("Resend available in 30 seconds.", 429)
+                    return
+                user = db.get_user_by_email(email)
+                if not user:
+                    self._error("Invalid email or password", 401)
+                    return
+                otp_code = auth.generate_otp_code()
+                otp_hash = auth.hash_otp(otp_code)
+                expires_at = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                db.save_otp(user["id"], otp_hash, expires_at)
+                auth.record_otp_resend(email)
+                auth.send_otp_email(user.get("email"), otp_code)
+                self._json_response({"ok": True, "status": "OTP_REQUIRED", "message": "Verification code sent to your registered email."})
                 return
 
-            if path == "/api/auth/otp/verify":
-                phone = (body.get("phone") or "").strip()
-                code = (body.get("code") or "").strip()
-                name = (body.get("name") or "Mobile User").strip()
-                if not phone or not code:
-                    self._error("phone and code are required")
-                    return
-                if not auth.verify_otp(phone, code):
-                    self._error("Invalid or expired OTP", 401)
-                    return
-                user = db.get_user_by_phone(phone)
+            if path == "/api/auth/logout":
+                user = self._require_auth()
                 if not user:
-                    uid = db.create_user(name=name, phone=phone)
-                    user = db.get_user_by_id(uid)
-                token = auth.create_token(user["id"], user["name"], user.get("email"))
+                    return
+                db.invalidate_sessions(user["id"])
+                self._json_response({"ok": True, "message": "Logged out successfully"})
+                return
+
+            if path == "/api/auth/me":
+                user = self._require_auth()
+                if not user:
+                    return
                 profile = db.get_profile(user["id"])
-                self._json_response({
-                    "ok": True,
-                    "token": token,
-                    "user": {
-                        "id": user["id"],
-                        "name": user["name"],
-                        "phone": phone,
-                        "profile_complete": bool(profile and profile.get("age"))
-                    }
-                })
+                self._json_response({"ok": True, "user": {"id": user["id"], "name": user["name"], "email": user.get("email"), "profile_complete": bool(profile and profile.get("age"))}})
+                return
+
+            if path == "/api/auth/forgot-password":
+                email = (body.get("email") or "").strip().lower()
+                if not email:
+                    self._error("email is required")
+                    return
+                user = db.get_user_by_email(email)
+                if not user:
+                    self._error("Invalid email or password", 401)
+                    return
+                self._json_response({"ok": True, "message": "Password reset instructions sent to your email"})
+                return
+
+            if path == "/api/auth/reset-password":
+                email = (body.get("email") or "").strip().lower()
+                password = body.get("password") or ""
+                if not email or not password:
+                    self._error("email and password are required")
+                    return
+                user = db.get_user_by_email(email)
+                if not user:
+                    self._error("Invalid email or password", 401)
+                    return
+                if not auth.is_strong_password(password):
+                    self._error("Password must be at least 8 characters, include uppercase, lowercase, number, and a symbol")
+                    return
+                db.update_user_password(user["id"], auth.hash_password(password))
+                db.invalidate_sessions(user["id"])
+                self._json_response({"ok": True, "message": "Password updated successfully"})
                 return
 
             if path == "/api/auth/google":
