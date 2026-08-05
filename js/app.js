@@ -279,7 +279,11 @@ const App = {
     document.getElementById('forgot-password')?.addEventListener('click', (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email')?.value || 'your email';
-      this.showToast(`Password reset link dispatched to ${email}`, 'info');
+      this.showToast(`Password reset instructions sent to ${email}`, 'info');
+    });
+
+    document.getElementById('otp-resend')?.addEventListener('click', () => {
+      this.handleResendOtp();
     });
 
     // Google Sign in button & Modal
@@ -652,6 +656,23 @@ const App = {
     }
   },
 
+  showOtpForm(email = '', showCodeInput = false) {
+    const form = document.getElementById('otp-form');
+    const codeGroup = document.getElementById('otp-code-group');
+    const submitBtn = document.getElementById('otp-submit');
+    const resendBtn = document.getElementById('otp-resend');
+    const emailInput = document.getElementById('otp-mobile');
+    const codeInput = document.getElementById('otp-code');
+
+    if (emailInput) emailInput.value = email || '';
+    if (codeInput) codeInput.value = '';
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    if (form) form.classList.add('active');
+    if (codeGroup) codeGroup.style.display = showCodeInput ? 'block' : 'none';
+    if (submitBtn) submitBtn.textContent = showCodeInput ? 'Verify Code' : 'Send Verification Code';
+    if (resendBtn) resendBtn.style.display = showCodeInput ? 'block' : 'none';
+  },
+
   async handleLogin() {
     const email = document.getElementById('login-email')?.value?.trim();
     const password = document.getElementById('login-password')?.value;
@@ -662,8 +683,14 @@ const App = {
     }
 
     const res = await API.request('POST', '/auth/login', { email, password });
-    if (res && res.ok && res.token) {
-      localStorage.setItem('hv_token', res.token);
+    if (res && res.ok && res.status === 'OTP_REQUIRED') {
+      this.state.pendingEmail = email;
+      this.showOtpForm(email, true);
+      this.showToast(res.message || 'Verification code sent to your registered email.', 'success');
+      return;
+    }
+    if (res && res.ok && res.status === 'SUCCESS' && res.access_token) {
+      localStorage.setItem('hv_token', res.access_token);
       this.state.user = res.user;
       this.celebrateLogin();
       this.showToast(`Welcome, ${res.user.name || 'User'}!`, 'success');
@@ -675,17 +702,10 @@ const App = {
           this.navigate('app-shell');
         }
       }, 1000);
-    } else {
-      // Demo / fallback path if email registered in memory or local state
-      const user = { name: email.split('@')[0].replace('.', ' '), email, phone: this.state.notifPhone };
-      this.state.user = user;
-      this.celebrateLogin();
-      this.showToast(`Logged in as ${user.name}!`, 'success');
-      setTimeout(() => {
-        this.updateUserDisplay();
-        this.navigate('app-shell');
-      }, 1000);
+      return;
     }
+
+    this.showToast(res?.error || 'Invalid email or password', 'error');
   },
 
   async handleSignup() {
@@ -703,7 +723,7 @@ const App = {
       return;
     }
 
-    const res = await API.request('POST', '/auth/register', { name, email, password });
+    const res = await API.request('POST', '/auth/register', { name, email, password, confirm_password: confirm });
     if (res && res.ok && res.token) {
       localStorage.setItem('hv_token', res.token);
       this.state.user = res.user;
@@ -733,53 +753,60 @@ const App = {
     const target = document.getElementById('otp-mobile')?.value?.trim();
 
     if (!target) {
-      this.showToast('Please enter an email or phone number', 'warning');
+      this.showToast('Please enter your email address', 'warning');
       return;
     }
 
     if (codeGroup && (codeGroup.style.display === 'none' || !codeGroup.style.display)) {
-      const res = await API.request('POST', '/auth/otp/send', { phone: target });
-      const otpCode = res?.demo_otp || '123456';
-      
-      codeGroup.style.display = 'block';
-      if (submitBtn) submitBtn.textContent = 'Verify OTP & Login';
-      if (hintEl) hintEl.textContent = `🔑 Demo OTP code: ${otpCode} (or 123456)`;
-
-      const isEmail = target.includes('@');
-      this.showToast(isEmail ? `OTP sent to email: ${target}` : `SMS OTP sent to ${target}`, 'success');
-      this.state.sentOtpCode = otpCode;
-    } else {
-      const code = document.getElementById('otp-code')?.value?.trim();
-      if (!code) {
-        this.showToast('Please enter the 6-digit OTP', 'warning');
-        return;
-      }
-
-      const res = await API.request('POST', '/auth/otp/verify', { phone: target, code, name: target.split('@')[0] });
-      if (res && res.ok && res.token) {
-        localStorage.setItem('hv_token', res.token);
-        this.state.user = res.user;
-        this.celebrateLogin();
-        this.showToast('OTP verified successfully!', 'success');
-        setTimeout(() => {
-          this.updateUserDisplay();
-          if (!res.user.profile_complete) {
-            this.navigate('profile-setup-screen');
-          } else {
-            this.navigate('app-shell');
-          }
-        }, 1000);
-      } else if (code === '123456' || code === this.state.sentOtpCode) {
-        this.state.user = { name: target.includes('@') ? target.split('@')[0] : 'Mobile User', email: target.includes('@') ? target : this.state.notifEmail, phone: target };
-        this.celebrateLogin();
-        this.showToast('OTP verified successfully!', 'success');
-        setTimeout(() => {
-          this.updateUserDisplay();
-          this.navigate('app-shell');
-        }, 1000);
+      const res = await API.request('POST', '/auth/resend-otp', { email: target });
+      if (res && res.ok) {
+        codeGroup.style.display = 'block';
+        if (submitBtn) submitBtn.textContent = 'Verify Code';
+        if (hintEl) hintEl.textContent = 'A new verification code has been sent to your email.';
+        this.showToast(res.message || 'Verification code sent to your registered email.', 'success');
       } else {
-        this.showToast(res?.error || 'Invalid OTP code. Try demo code 123456', 'error');
+        this.showToast(res?.error || 'Unable to send verification code', 'error');
       }
+      return;
+    }
+
+    const code = document.getElementById('otp-code')?.value?.trim();
+    if (!code) {
+      this.showToast('Please enter the 6-digit OTP', 'warning');
+      return;
+    }
+
+    const res = await API.request('POST', '/auth/verify-otp', { email: target, code });
+    if (res && res.ok && res.access_token) {
+      localStorage.setItem('hv_token', res.access_token);
+      this.state.user = res.user;
+      this.celebrateLogin();
+      this.showToast('OTP verified successfully!', 'success');
+      setTimeout(() => {
+        this.updateUserDisplay();
+        if (!res.user.profile_complete) {
+          this.navigate('profile-setup-screen');
+        } else {
+          this.navigate('app-shell');
+        }
+      }, 1000);
+    } else {
+      this.showToast(res?.error || 'Invalid verification code', 'error');
+    }
+  },
+
+  async handleResendOtp() {
+    const email = document.getElementById('otp-mobile')?.value?.trim();
+    if (!email) {
+      this.showToast('Please enter your email address', 'warning');
+      return;
+    }
+
+    const res = await API.request('POST', '/auth/resend-otp', { email });
+    if (res && res.ok) {
+      this.showToast(res.message || 'Verification code resent', 'success');
+    } else {
+      this.showToast(res?.error || 'Unable to resend verification code', 'error');
     }
   },
 

@@ -179,10 +179,10 @@
       <!-- OTP Form (hidden by default) -->
       <form id="otp-form" class="auth-form">
         <div class="form-group">
-          <label>Email or Mobile Number</label>
+          <label>Email Address</label>
           <div class="input-with-icon">
             <i class="fas fa-envelope-open-text"></i>
-            <input type="text" id="otp-mobile" placeholder="you@example.com or +91 98765 43210" required>
+            <input type="email" id="otp-mobile" placeholder="you@example.com" required>
           </div>
         </div>
         <div class="form-group" id="otp-code-group" style="display:none;">
@@ -193,7 +193,8 @@
           </div>
           <div id="otp-demo-hint" style="font-size:0.8rem;color:var(--primary-dark);margin-top:6px;font-weight:500;"></div>
         </div>
-        <button type="submit" class="btn btn-primary btn-block" id="otp-submit">Send OTP</button>
+        <button type="submit" class="btn btn-primary btn-block" id="otp-submit">Send Verification Code</button>
+        <button type="button" class="btn btn-outline btn-block" id="otp-resend" style="margin-top:10px; display:none;">Resend Code</button>
         <button type="button" class="btn btn-outline btn-block" id="back-to-login" style="margin-top:10px;">Back to Login</button>
       </form>
       </div><!-- /.auth-container -->

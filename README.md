@@ -1,62 +1,116 @@
-# HealthVerse AI (Latest)
+# HealthVerse AI
 
-## What's new
-- **Real Google OAuth** via Google Identity Services (set your Client ID)
-- Stethoscope icon (splash, header, login)
-- Animated girl character on login (walks in, dances on success)
-- Profile page with 4 tabs: Personal | Locker | Alerts | Settings
-- Tulu language (text fully works; voice falls back with a clear message)
-- Demo Google accounts still work when Client ID is empty
+HealthVerse AI is a healthcare-focused web application that combines medical report understanding, personalized health insights, secure authentication, and AI-powered assistance.
 
-## How to run
+The project currently uses a Python backend with an SQLite database and supports secure email/password login followed by email OTP verification.
 
-### With backend (recommended)
+## Overview
+
+HealthVerse AI helps users manage health-related information through a modern web interface. The app includes:
+
+- user registration and login
+- password-based authentication with email OTP verification
+- profile management
+- dashboard and health insights
+- report upload and analysis workflow
+- medicine reminders and tracking
+- AI-style healthcare assistant experience
+
+## Authentication Flow
+
+The current login process is:
+
+1. Register with full name, email, and password
+2. Login with email and password
+3. If the password is correct, generate a 6-digit OTP
+4. Send the OTP to the registered email
+5. Verify the OTP to complete login
+
+This means the app uses both password authentication and OTP verification for security.
+
+## Tech Stack
+
+- Frontend: HTML, CSS, JavaScript
+- Backend: Python
+- Web server: Python HTTP server
+- Database: SQLite
+- Authentication: password hashing, JWT-style tokens, email OTP
+
+## Database
+
+The application currently uses SQLite for local development.
+
+Database file:
+- backend/data/healthverse.db
+
+The database stores:
+- users
+- profiles
+- reports
+- medicines
+- chat history
+- OTP verification records
+- sessions
+
+## Project Structure
+
+- index.html — main frontend page
+- css/styles.css — UI styling
+- js/app.js — frontend logic, navigation, and auth flow
+- backend/main.py — backend server and API routes
+- backend/auth.py — password hashing, JWT, OTP, and email helpers
+- backend/database.py — SQLite database layer
+- backend/data/healthverse.db — local database file
+
+## How to Run
+
+### 1. Start the backend
 ```bash
-cd healthverse-ai/backend
+cd backend
 python main.py
 ```
-Open http://localhost:8000
+Then open:
+- http://localhost:8000
 
-### Frontend only
+### 2. Start the frontend (optional, if serving separately)
 ```bash
-cd healthverse-ai
+cd ..
 python -m http.server 8080
 ```
-Open http://localhost:8080
+Then open:
+- http://localhost:8080
 
-Camera, mic, and notifications need http:// — do not open index.html by double-click.
+> For the best experience, run the backend so the frontend can communicate with the API correctly.
 
----
+## API Endpoints
 
-## Enable REAL Google Sign-In (5 minutes)
+The backend currently supports these auth endpoints:
 
-1. Open [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project (or select one)
-3. Go to **APIs & Services → Credentials**
-4. Click **+ CREATE CREDENTIALS → OAuth client ID**
-5. Application type: **Web application**
-6. Name it e.g. `HealthVerse Local`
-7. **Authorized JavaScript origins**:
-   - `http://localhost:8000`
-   - `http://localhost:8080`
-8. **Authorized redirect URIs** (same):
-   - `http://localhost:8000`
-   - `http://localhost:8080`
-9. Click Create → copy the **Client ID** (looks like `123456789-xxxx.apps.googleusercontent.com`)
+- POST /api/auth/register
+- POST /api/auth/login
+- POST /api/auth/verify-otp
+- POST /api/auth/resend-otp
+- POST /api/auth/logout
+- GET /api/auth/me
+- POST /api/auth/forgot-password
+- POST /api/auth/reset-password
 
-10. Paste the Client ID in **two places**:
-    - `js/app.js` → line near the top: `const GOOGLE_CLIENT_ID = "YOUR_ID_HERE";`
-    - `backend/auth.py` → `GOOGLE_CLIENT_ID = "YOUR_ID_HERE"`
+## Environment Variables
 
-11. Restart the backend (`python main.py`) and refresh the browser.
+For real email delivery, set the following values before starting the backend:
 
-You will now see the official Google account picker with your real Google accounts.
+```bash
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USERNAME=
+SMTP_PASSWORD=
+EMAIL_FROM=
+JWT_SECRET=
+```
 
-> Leave `GOOGLE_CLIENT_ID = ""` (empty) to keep the 3 demo accounts working.
+## Notes
 
----
-
-## Other production TODOs
-- Real OTP SMS → Twilio / MSG91 / AWS SNS
-- Translation/AI → Google Gemini / OpenAI
-- OCR → Google Vision API or Tesseract
+- Passwords are stored as salted hashes.
+- OTPs are hashed before storage.
+- The current setup is intended for local development and testing.
+- No API key is required for the current authentication flow.
