@@ -1,116 +1,265 @@
-# HealthVerse AI
+# 🏥 HealthVerse AI
 
-HealthVerse AI is a healthcare-focused web application that combines medical report understanding, personalized health insights, secure authentication, and AI-powered assistance.
+An AI-powered healthcare web application that helps users understand medical reports, receive AI-powered health insights, manage medications, and access emergency assistance through an intuitive interface.
 
-The project currently uses a Python backend with an SQLite database and supports secure email/password login followed by email OTP verification.
+## 🚀 Features
 
-## Overview
+### 🔐 Authentication
+- User Registration
+- Secure Login
+- OTP Verification
+- Google Sign-In
+- JWT Authentication
 
-HealthVerse AI helps users manage health-related information through a modern web interface. The app includes:
+### 🤖 AI Healthcare Assistant
+- AI-powered medical report analysis
+- Health-related chatbot
+- Personalized health guidance
+- Medical report translation
 
-- user registration and login
-- password-based authentication with email OTP verification
-- profile management
-- dashboard and health insights
-- report upload and analysis workflow
-- medicine reminders and tracking
-- AI-style healthcare assistant experience
+### 💊 Medicine Management
+- Track daily medicines
+- Mark medicines as taken
+- Medication reminders
 
-## Authentication Flow
+### 📄 Medical Reports
+- Upload medical reports
+- AI analysis of reports
+- Translate reports into understandable language
+- View report history
 
-The current login process is:
+### 👤 User Profile
+- Update profile information
+- Secure authentication
+- Personalized dashboard
 
-1. Register with full name, email, and password
-2. Login with email and password
-3. If the password is correct, generate a 6-digit OTP
-4. Send the OTP to the registered email
-5. Verify the OTP to complete login
+### 🚨 Emergency Support
+- One-click SOS feature
+- Quick emergency assistance
 
-This means the app uses both password authentication and OTP verification for security.
+---
 
-## Tech Stack
+# 🛠️ Tech Stack
 
-- Frontend: HTML, CSS, JavaScript
-- Backend: Python
-- Web server: Python HTTP server
-- Database: SQLite
-- Authentication: password hashing, JWT-style tokens, email OTP
+## Frontend
+- HTML5
+- CSS3
+- JavaScript (ES6)
 
-## Database
+## Backend
+- Python
+- Python HTTP Server
+- SQLite
+- JWT Authentication
 
-The application currently uses SQLite for local development.
+## AI
+- Custom AI Service
+- Healthcare Report Analysis
 
-Database file:
-- backend/data/healthverse.db
+## Deployment
+- Frontend: Vercel
+- Backend: Render
 
-The database stores:
-- users
-- profiles
-- reports
-- medicines
-- chat history
-- OTP verification records
-- sessions
+---
 
-## Project Structure
+# 📂 Project Structure
 
-- index.html — main frontend page
-- css/styles.css — UI styling
-- js/app.js — frontend logic, navigation, and auth flow
-- backend/main.py — backend server and API routes
-- backend/auth.py — password hashing, JWT, OTP, and email helpers
-- backend/database.py — SQLite database layer
-- backend/data/healthverse.db — local database file
+```
+Health-Verse-AI/
+│
+├── backend/
+│   ├── main.py
+│   ├── auth.py
+│   ├── database.py
+│   ├── ai_service.py
+│   ├── requirements.txt
+│   └── runtime.txt
+│
+├── css/
+│   └── styles.css
+│
+├── js/
+│   └── app.js
+│
+├── assets/
+│
+├── index.html
+├── README.md
+└── START.bat
+```
 
-## How to Run
+---
 
-### 1. Start the backend
+# ⚙️ Installation
+
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/k-prajna/Health-Verse-AI.git
+cd Health-Verse-AI
+```
+
+---
+
+## 2. Install Dependencies
+
 ```bash
 cd backend
+pip install -r requirements.txt
+```
+
+---
+
+## 3. Run Backend
+
+```bash
 python main.py
 ```
-Then open:
-- http://localhost:8000
 
-### 2. Start the frontend (optional, if serving separately)
-```bash
-cd ..
-python -m http.server 8080
+Server starts at:
+
 ```
-Then open:
-- http://localhost:8080
-
-> For the best experience, run the backend so the frontend can communicate with the API correctly.
-
-## API Endpoints
-
-The backend currently supports these auth endpoints:
-
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/verify-otp
-- POST /api/auth/resend-otp
-- POST /api/auth/logout
-- GET /api/auth/me
-- POST /api/auth/forgot-password
-- POST /api/auth/reset-password
-
-## Environment Variables
-
-For real email delivery, set the following values before starting the backend:
-
-```bash
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USERNAME=
-SMTP_PASSWORD=
-EMAIL_FROM=
-JWT_SECRET=
+http://localhost:10000
 ```
 
-## Notes
+---
 
-- Passwords are stored as salted hashes.
-- OTPs are hashed before storage.
-- The current setup is intended for local development and testing.
-- No API key is required for the current authentication flow.
+## 4. Open Application
+
+Open your browser:
+
+```
+http://localhost:10000
+```
+
+---
+
+# 🌐 Deployment
+
+## Backend (Render)
+
+- Python Runtime
+- Root Directory: `backend`
+- Start Command:
+
+```bash
+python main.py
+```
+
+---
+
+## Frontend (Vercel)
+
+Deploy the repository directly on Vercel.
+
+Update `js/app.js` with your Render backend URL:
+
+```javascript
+const DEFAULT_API_BASE = "https://your-render-app.onrender.com/api";
+```
+
+---
+
+# 📡 API Endpoints
+
+## Authentication
+
+| Method | Endpoint |
+|---------|----------|
+| POST | `/api/auth/register` |
+| POST | `/api/auth/login` |
+| POST | `/api/auth/verify-otp` |
+| POST | `/api/auth/resend-otp` |
+| POST | `/api/auth/google` |
+
+## User
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/profile` |
+| PUT | `/api/profile` |
+
+## AI
+
+| Method | Endpoint |
+|---------|----------|
+| POST | `/api/chat` |
+| GET | `/api/chat/history` |
+
+## Reports
+
+| Method | Endpoint |
+|---------|----------|
+| POST | `/api/reports/analyze` |
+| POST | `/api/reports/translate` |
+| GET | `/api/reports` |
+
+## Medicines
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/medicines` |
+| POST | `/api/medicines/taken` |
+
+## Emergency
+
+| Method | Endpoint |
+|---------|----------|
+| POST | `/api/sos` |
+
+---
+
+# ✨ Future Improvements
+
+- Voice-enabled AI assistant
+- Doctor appointment booking
+- OCR for medical reports
+- Health analytics dashboard
+- Multi-language support
+- AI symptom checker
+- Cloud database integration
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the repository
+2. Create a feature branch
+
+```bash
+git checkout -b feature-name
+```
+
+3. Commit your changes
+
+```bash
+git commit -m "Add new feature"
+```
+
+4. Push to your branch
+
+```bash
+git push origin feature-name
+```
+
+5. Open a Pull Request
+
+---
+
+# 📜 License
+
+This project is licensed under the MIT License.
+
+---
+
+# 👩‍💻 Author
+
+**Prajna K**
+
+- GitHub: https://github.com/k-prajna
+
+---
+
+⭐ If you found this project useful, consider giving it a **Star** on GitHub!
