@@ -5,7 +5,9 @@
  * Gmail & SMS OTP Authentication, and full Backend API Integration.
  */
 
-const API_BASE = '/api';
+const DEFAULT_API_BASE = 'https://health-verse-ai.onrender.com/api';
+const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '::1'];
+const API_BASE = window.__API_BASE__ || (LOCAL_HOSTNAMES.includes(window.location.hostname) ? '/api' : DEFAULT_API_BASE);
 const GOOGLE_CLIENT_ID = ""; // Set your Google OAuth Client ID here
 
 const API = {

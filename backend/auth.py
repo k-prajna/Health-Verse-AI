@@ -13,7 +13,10 @@ from os import getenv
 try:
     import jwt
 except ImportError:
-    jwt = None
+    try:
+        from jose import jwt
+    except ImportError:
+        jwt = None
 
 JWT_SECRET = getenv("JWT_SECRET", "healthverse-ai-demo-secret-key-change-in-prod-2026")
 JWT_ALGORITHM = "HS256"

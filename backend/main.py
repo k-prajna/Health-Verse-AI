@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-HealthVerse AI — Backend Server
+HealthVerse AI - Backend Server
 Pure Python (stdlib + PyJWT). Serves REST API + static frontend.
 
 Usage:
@@ -10,6 +10,7 @@ Usage:
 import json
 import mimetypes
 import os
+import socket
 import sys
 import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -23,21 +24,42 @@ import database as db
 import auth
 import ai_service
 
-# ── Config ─────────────────────────────────────────────
+# Config
 HOST = "0.0.0.0"
-PORT = int(os.environ.get("PORT", 8000))
-FRONTEND_DIR = Path(__file__).parent.parent  # healthverse-ai/
-UPLOAD_DIR = Path(__file__).parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+PORT = int(os.environ.get("PORT", 10000))
+BACKEND_DIR = Path(__file__).parent.resolve()
+FRONTEND_DIR = BACKEND_DIR.parent  # healthverse-ai/
+DATA_DIR = BACKEND_DIR / "data"
+UPLOAD_DIR = BACKEND_DIR / "uploads"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Max body size 10 MB
 MAX_BODY = 10 * 1024 * 1024
+
+class DualStackHTTPServer(HTTPServer):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        # On Windows, binding AF_INET6 to the IPv4 wildcard address 0.0.0.0 fails.
+        # For all-interface binding, use the IPv6 wildcard :: and allow dual-stack.
+        bind_address = self.server_address
+        if bind_address[0] == "0.0.0.0":
+            bind_address = ("::", bind_address[1], 0, 0)
+
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except OSError:
+            pass
+
+        self.socket.bind(bind_address)
+        self.server_address = bind_address
 
 
 class HealthVerseHandler(BaseHTTPRequestHandler):
     server_version = "HealthVerseAI/1.0"
 
-    # ── Helpers ────────────────────────────────────────
+    # Helpers
     def _set_cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -88,13 +110,15 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             return None
         return user
 
-    # ── Routing ────────────────────────────────────────
+    # Routing
     def do_OPTIONS(self):
+        print(f"[Request] OPTIONS {self.path} from {self.client_address[0]}")
         self.send_response(204)
         self._set_cors()
         self.end_headers()
 
     def do_GET(self):
+        print(f"[Request] GET {self.path} from {self.client_address[0]}")
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
 
@@ -106,7 +130,41 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
         # Static files
         self._serve_static(path)
 
+    def do_HEAD(self):
+        print(f"[Request] HEAD {self.path} from {self.client_address[0]}")
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+
+        if path.startswith("/api/"):
+            # Most browsers only need HEAD for resource checks. Return headers only.
+            self.send_response(200)
+            self._set_cors()
+            self.end_headers()
+            return
+
+        if path == "/":
+            path = "/index.html"
+
+        file_path = (FRONTEND_DIR / path.lstrip("/")).resolve()
+        if not str(file_path).startswith(str(FRONTEND_DIR.resolve())):
+            self.send_error(403)
+            return
+        if not file_path.is_file():
+            self.send_error(404)
+            return
+
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        content_type = content_type or "application/octet-stream"
+        file_size = file_path.stat().st_size
+
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(file_size))
+        self._set_cors()
+        self.end_headers()
+
     def do_POST(self):
+        print(f"[Request] POST {self.path} from {self.client_address[0]}")
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         if not path.startswith("/api/"):
@@ -120,6 +178,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
         self._handle_api_post(path, body)
 
     def do_PUT(self):
+        print(f"[Request] PUT {self.path} from {self.client_address[0]}")
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         if not path.startswith("/api/"):
@@ -132,7 +191,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             return
         self._handle_api_put(path, body)
 
-    # ── API GET ────────────────────────────────────────
+    # API GET
     def _handle_api_get(self, path, query):
         try:
             if path == "/api/health":
@@ -203,10 +262,10 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             traceback.print_exc()
             self._error(f"Server error: {e}", 500)
 
-    # ── API POST ───────────────────────────────────────
+    # API POST
     def _handle_api_post(self, path, body):
         try:
-            # ── Auth ──
+            # Auth
             if path == "/api/auth/register":
                 name = (body.get("name") or "").strip()
                 email = (body.get("email") or "").strip().lower()
@@ -419,7 +478,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 })
                 return
 
-            # ── Report upload & analysis ──
+            # Report upload & analysis
             if path == "/api/reports/analyze":
                 user = self._require_auth()
                 if not user:
@@ -460,7 +519,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 self._json_response({"ok": True, "translation": translated})
                 return
 
-            # ── Chat ──
+            # Chat
             if path == "/api/chat":
                 user = self._require_auth()
                 if not user:
@@ -476,7 +535,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 self._json_response({"ok": True, "reply": reply})
                 return
 
-            # ── Medicine taken ──
+            # Medicine taken
             if path == "/api/medicines/taken":
                 user = self._require_auth()
                 if not user:
@@ -490,7 +549,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
                 self._json_response({"ok": True})
                 return
 
-            # ── SOS ──
+            # SOS
             if path == "/api/sos":
                 user = self._require_auth()
                 if not user:
@@ -515,14 +574,14 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             traceback.print_exc()
             self._error(f"Server error: {e}", 500)
 
-    # ── API PUT ────────────────────────────────────────
+    # API PUT
     def _handle_api_put(self, path, body):
         try:
             if path == "/api/profile":
                 user = self._require_auth()
                 if not user:
                     return
-                # Map frontend keys → DB columns
+                # Map frontend keys ΓåÆ DB columns
                 mapping = {
                     "name": "name",
                     "age": "age",
@@ -554,7 +613,7 @@ class HealthVerseHandler(BaseHTTPRequestHandler):
             traceback.print_exc()
             self._error(f"Server error: {e}", 500)
 
-    # ── Static file server ─────────────────────────────
+    # Static file server
     def _serve_static(self, path):
         if path == "/":
             path = "/index.html"
@@ -587,21 +646,41 @@ def main():
     print("=" * 55)
     print("  HealthVerse AI — Backend Server")
     print("=" * 55)
-    db.init_db()
+    print(f"[Server] Working dir  : {Path.cwd()}")
+    print(f"[Server] Backend dir  : {BACKEND_DIR}")
     print(f"[Server] Frontend dir : {FRONTEND_DIR}")
-    print(f"[Server] Listening on  http://{HOST}:{PORT}")
-    print(f"[Server] API base      http://localhost:{PORT}/api/")
-    print(f"[Server] Open browser  http://localhost:{PORT}")
-    print("  Press Ctrl+C to stop")
-    print("=" * 55)
+    print(f"[Server] Index exists : { (FRONTEND_DIR / 'index.html').is_file() }")
+    print(f"[Server] Database path: {db.DB_PATH}")
+    print(f"[Server] PORT         : {PORT}")
 
-    server = HTTPServer((HOST, PORT), HealthVerseHandler)
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[Server] Shutting down...")
-        server.shutdown()
+        db.init_db()
+        print(f"[Server] Listening on  http://{HOST}:{PORT}")
+        print(f"[Server] Browser URLs  http://127.0.0.1:{PORT} and http://localhost:{PORT}")
+        print(f"[Server] API base      http://0.0.0.0:{PORT}/api/")
+        if (FRONTEND_DIR / 'index.html').is_file():
+            print(f"[Server] Serving index file from {(FRONTEND_DIR / 'index.html')}")
+        else:
+            print("[WARNING] index.html not found at frontend root")
+        print("  Press Ctrl+C to stop")
+        print("=" * 55)
+
+        server = DualStackHTTPServer((HOST, PORT), HealthVerseHandler)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\n[Server] Shutting down...")
+            server.shutdown()
+        except Exception as e:
+            print(f"[ERROR] Server runtime error: {e}")
+            traceback.print_exc()
+            sys.exit(1)
+    except Exception as e:
+        print(f"[ERROR] Startup failed: {e}")
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+
