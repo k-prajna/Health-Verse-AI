@@ -1,23 +1,28 @@
 """
 HealthVerse AI — SQLite database helpers
 """
+
 import sqlite3
 import os
 import json
-from datetime import datetime
 
 DB_DIR = os.path.join(os.path.dirname(__file__), "data")
 DB_PATH = os.path.join(DB_DIR, "healthverse.db")
 
+
 def get_conn():
     os.makedirs(DB_DIR, exist_ok=True)
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+
     return conn
+
 
 def init_db():
     conn = get_conn()
     c = conn.cursor()
+
     c.executescript("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,6 +32,7 @@ def init_db():
         phone TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
     CREATE TABLE IF NOT EXISTS profiles (
         user_id INTEGER PRIMARY KEY,
         name TEXT,
@@ -41,6 +47,7 @@ def init_db():
         language TEXT DEFAULT 'en',
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
     CREATE TABLE IF NOT EXISTS reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -49,6 +56,7 @@ def init_db():
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
     CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -57,6 +65,7 @@ def init_db():
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
     CREATE TABLE IF NOT EXISTS medicines_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -65,182 +74,563 @@ def init_db():
         date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
     CREATE TABLE IF NOT EXISTS otps (
         phone TEXT PRIMARY KEY,
         code TEXT,
         expires_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS login_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        login_method TEXT NOT NULL,
+        login_time TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    );
     """)
-    # Seed demo user if missing
-    row = c.execute("SELECT id FROM users WHERE email=?", ("demo@healthverse.ai",)).fetchone()
+
+    # Demo user
+    row = c.execute(
+        "SELECT id FROM users WHERE email=?",
+        ("demo@healthverse.ai",)
+    ).fetchone()
+
     if not row:
         import auth as _auth
+
         pw = _auth.hash_password("demo123")
+
         c.execute(
-            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-            ("Demo User", "demo@healthverse.ai", pw),
+            """
+            INSERT INTO users
+            (name, email, password_hash)
+            VALUES (?, ?, ?)
+            """,
+            ("Demo User", "demo@healthverse.ai", pw)
         )
+
         uid = c.lastrowid
+
         c.execute(
-            """INSERT INTO profiles (user_id, name, age, gender, blood, language)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (uid, "Demo User", 45, "male", "O+", "en"),
+            """
+            INSERT INTO profiles
+            (user_id, name, age, gender, blood, language)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (uid, "Demo User", 45, "male", "O+", "en")
         )
+
     conn.commit()
     conn.close()
+
+
+# --------------------------------------------------
+# USERS
+# --------------------------------------------------
 
 def create_user(name, email, password_hash, phone=None):
     conn = get_conn()
+
     try:
         c = conn.cursor()
+
         c.execute(
-            "INSERT INTO users (name, email, password_hash, phone) VALUES (?, ?, ?, ?)",
-            (name, email, password_hash, phone),
+            """
+            INSERT INTO users
+            (name, email, password_hash, phone)
+            VALUES (?, ?, ?, ?)
+            """,
+            (name, email, password_hash, phone)
         )
+
         uid = c.lastrowid
+
         conn.commit()
+
         return uid
+
     except sqlite3.IntegrityError:
         return None
+
     finally:
         conn.close()
 
+
 def get_user_by_email(email):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+
+    row = conn.execute(
+        "SELECT * FROM users WHERE email=?",
+        (email,)
+    ).fetchone()
+
     conn.close()
+
     return dict(row) if row else None
+
 
 def get_user_by_id(uid):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+
+    row = conn.execute(
+        "SELECT * FROM users WHERE id=?",
+        (uid,)
+    ).fetchone()
+
     conn.close()
+
     return dict(row) if row else None
+
 
 def get_user_by_phone(phone):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
+
+    row = conn.execute(
+        "SELECT * FROM users WHERE phone=?",
+        (phone,)
+    ).fetchone()
+
     conn.close()
+
     return dict(row) if row else None
 
-def get_or_create_google_user(email, name):
-    u = get_user_by_email(email)
-    if u:
-        return u
+
+# --------------------------------------------------
+# LOGIN HISTORY
+# --------------------------------------------------
+
+def record_login(user_id, login_method):
+    """
+    Record every successful login.
+
+    login_method examples:
+    password
+    otp
+    google
+    """
+
     conn = get_conn()
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        (name, email, ""),
+
+    conn.execute(
+        """
+        INSERT INTO login_history
+        (user_id, login_method)
+        VALUES (?, ?)
+        """,
+        (user_id, login_method)
     )
-    uid = c.lastrowid
-    c.execute(
-        "INSERT INTO profiles (user_id, name, language) VALUES (?, ?, ?)",
-        (uid, name, "en"),
-    )
+
     conn.commit()
     conn.close()
+
+
+def get_login_count():
+    """
+    Total number of successful login events.
+    """
+
+    conn = get_conn()
+
+    row = conn.execute(
+        "SELECT COUNT(*) AS count FROM login_history"
+    ).fetchone()
+
+    conn.close()
+
+    return row["count"]
+
+
+def get_unique_logged_in_users():
+    """
+    Number of different users who have logged in.
+    """
+
+    conn = get_conn()
+
+    row = conn.execute(
+        """
+        SELECT COUNT(DISTINCT user_id) AS count
+        FROM login_history
+        """
+    ).fetchone()
+
+    conn.close()
+
+    return row["count"]
+
+
+def get_login_history(limit=100):
+    """
+    Return recent login history.
+    """
+
+    conn = get_conn()
+
+    rows = conn.execute(
+        """
+        SELECT
+            login_history.id,
+            login_history.user_id,
+            users.name,
+            users.email,
+            login_history.login_method,
+            login_history.login_time
+        FROM login_history
+        JOIN users
+            ON users.id = login_history.user_id
+        ORDER BY login_history.id DESC
+        LIMIT ?
+        """,
+        (limit,)
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+# --------------------------------------------------
+# GOOGLE / OTP USERS
+# --------------------------------------------------
+
+def get_or_create_google_user(email, name):
+    user = get_user_by_email(email)
+
+    if user:
+        return user
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    c.execute(
+        """
+        INSERT INTO users
+        (name, email, password_hash)
+        VALUES (?, ?, ?)
+        """,
+        (name, email, "")
+    )
+
+    uid = c.lastrowid
+
+    c.execute(
+        """
+        INSERT INTO profiles
+        (user_id, name, language)
+        VALUES (?, ?, ?)
+        """,
+        (uid, name, "en")
+    )
+
+    conn.commit()
+    conn.close()
+
     return get_user_by_id(uid)
 
+
 def get_or_create_otp_user(phone):
-    u = get_user_by_phone(phone)
-    if u:
-        return u
+    user = get_user_by_phone(phone)
+
+    if user:
+        return user
+
     email = phone + "@otp.local"
+
     existing = get_user_by_email(email)
+
     if existing:
         return existing
+
     conn = get_conn()
     c = conn.cursor()
+
     c.execute(
-        "INSERT INTO users (name, email, password_hash, phone) VALUES (?, ?, ?, ?)",
-        ("User", email, "", phone),
+        """
+        INSERT INTO users
+        (name, email, password_hash, phone)
+        VALUES (?, ?, ?, ?)
+        """,
+        ("User", email, "", phone)
     )
+
     uid = c.lastrowid
+
     conn.commit()
     conn.close()
+
     return get_user_by_id(uid)
+
+
+# --------------------------------------------------
+# PROFILE
+# --------------------------------------------------
 
 def get_profile(user_id):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM profiles WHERE user_id=?", (user_id,)).fetchone()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM profiles
+        WHERE user_id=?
+        """,
+        (user_id,)
+    ).fetchone()
+
     conn.close()
+
     return dict(row) if row else None
+
 
 def upsert_profile(user_id, data):
     conn = get_conn()
-    existing = conn.execute("SELECT user_id FROM profiles WHERE user_id=?", (user_id,)).fetchone()
-    fields = ["name", "age", "gender", "blood", "height", "weight", "allergies", "diseases", "emergency", "language"]
+
+    existing = conn.execute(
+        "SELECT user_id FROM profiles WHERE user_id=?",
+        (user_id,)
+    ).fetchone()
+
+    fields = [
+        "name",
+        "age",
+        "gender",
+        "blood",
+        "height",
+        "weight",
+        "allergies",
+        "diseases",
+        "emergency",
+        "language"
+    ]
+
     if existing:
-        sets = ", ".join(f"{f}=?" for f in fields)
-        vals = [data.get(f) for f in fields] + [user_id]
-        conn.execute(f"UPDATE profiles SET {sets} WHERE user_id=?", vals)
+
+        sets = ", ".join(
+            f"{field}=?"
+            for field in fields
+        )
+
+        values = [
+            data.get(field)
+            for field in fields
+        ]
+
+        values.append(user_id)
+
+        conn.execute(
+            f"""
+            UPDATE profiles
+            SET {sets}
+            WHERE user_id=?
+            """,
+            values
+        )
+
     else:
-        cols = ", ".join(["user_id"] + fields)
-        placeholders = ", ".join(["?"] * (len(fields) + 1))
-        vals = [user_id] + [data.get(f) for f in fields]
-        conn.execute(f"INSERT INTO profiles ({cols}) VALUES ({placeholders})", vals)
-    # also update user name
+
+        columns = ", ".join(
+            ["user_id"] + fields
+        )
+
+        placeholders = ", ".join(
+            ["?"] * (len(fields) + 1)
+        )
+
+        values = [
+            user_id
+        ] + [
+            data.get(field)
+            for field in fields
+        ]
+
+        conn.execute(
+            f"""
+            INSERT INTO profiles
+            ({columns})
+            VALUES ({placeholders})
+            """,
+            values
+        )
+
     if data.get("name"):
-        conn.execute("UPDATE users SET name=? WHERE id=?", (data["name"], user_id))
+
+        conn.execute(
+            """
+            UPDATE users
+            SET name=?
+            WHERE id=?
+            """,
+            (data["name"], user_id)
+        )
+
     conn.commit()
     conn.close()
+
+
+# --------------------------------------------------
+# OTP
+# --------------------------------------------------
 
 def save_otp(phone, code, expires_at):
     conn = get_conn()
+
     conn.execute(
-        "INSERT OR REPLACE INTO otps (phone, code, expires_at) VALUES (?, ?, ?)",
-        (phone, code, expires_at),
+        """
+        INSERT OR REPLACE INTO otps
+        (phone, code, expires_at)
+        VALUES (?, ?, ?)
+        """,
+        (phone, code, expires_at)
     )
+
     conn.commit()
     conn.close()
+
 
 def verify_otp(phone, code):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM otps WHERE phone=?", (phone,)).fetchone()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM otps
+        WHERE phone=?
+        """,
+        (phone,)
+    ).fetchone()
+
     conn.close()
+
     if not row:
         return False
+
     if row["code"] != code and code != "123456":
         return False
-    # optional expiry check
+
     return True
+
+
+# --------------------------------------------------
+# REPORTS
+# --------------------------------------------------
 
 def save_report(user_id, filename, analysis):
     conn = get_conn()
+
     c = conn.cursor()
+
     c.execute(
-        "INSERT INTO reports (user_id, filename, analysis_json) VALUES (?, ?, ?)",
-        (user_id, filename, json.dumps(analysis)),
+        """
+        INSERT INTO reports
+        (user_id, filename, analysis_json)
+        VALUES (?, ?, ?)
+        """,
+        (
+            user_id,
+            filename,
+            json.dumps(analysis)
+        )
     )
+
     rid = c.lastrowid
+
     conn.commit()
     conn.close()
+
     return rid
+
 
 def list_reports(user_id):
     conn = get_conn()
+
     rows = conn.execute(
-        "SELECT id, filename, created_at FROM reports WHERE user_id=? ORDER BY id DESC LIMIT 20",
-        (user_id,),
+        """
+        SELECT id, filename, created_at
+        FROM reports
+        WHERE user_id=?
+        ORDER BY id DESC
+        LIMIT 20
+        """,
+        (user_id,)
     ).fetchall()
+
     conn.close()
-    return [dict(r) for r in rows]
+
+    return [dict(row) for row in rows]
+
+
+# --------------------------------------------------
+# CHAT
+# --------------------------------------------------
 
 def save_chat(user_id, role, message):
     conn = get_conn()
+
     conn.execute(
-        "INSERT INTO chat_messages (user_id, role, message) VALUES (?, ?, ?)",
-        (user_id, role, message),
+        """
+        INSERT INTO chat_messages
+        (user_id, role, message)
+        VALUES (?, ?, ?)
+        """,
+        (user_id, role, message)
     )
+
     conn.commit()
     conn.close()
 
+
 def get_chat_history(user_id, limit=50):
     conn = get_conn()
+
     rows = conn.execute(
-        "SELECT role, message, created_at FROM chat_messages WHERE user_id=? ORDER BY id DESC LIMIT ?",
-        (user_id, limit),
+        """
+        SELECT role, message, created_at
+        FROM chat_messages
+        WHERE user_id=?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (user_id, limit)
     ).fetchall()
+
     conn.close()
-    return [dict(r) for r in reversed(rows)]
+
+    return [dict(row) for row in reversed(rows)]
+# --------------------------------------------------
+# LOGIN HISTORY
+# --------------------------------------------------
+
+def record_login(user_id, login_method):
+    conn = get_conn()
+
+    conn.execute(
+        """
+        INSERT INTO login_history
+        (user_id, login_method)
+        VALUES (?, ?)
+        """,
+        (user_id, login_method)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_login_stats():
+    conn = get_conn()
+
+    total_logins = conn.execute(
+        "SELECT COUNT(*) FROM login_history"
+    ).fetchone()[0]
+
+    unique_users = conn.execute(
+        "SELECT COUNT(DISTINCT user_id) FROM login_history"
+    ).fetchone()[0]
+
+    conn.close()
+
+    return {
+        "total_logins": total_logins,
+        "unique_users": unique_users
+    }
