@@ -1,0 +1,34 @@
+HealthVerse AI - Install & Run
+================================
+
+WINDOWS
+-------
+1. Extract this zip
+2. Double-click START.bat
+3. Open browser: http://localhost:8000
+
+MAC / LINUX
+-----------
+cd healthverse-ai/backend
+python3 main.py
+Open: http://localhost:8000
+
+DEMO LOGIN (works immediately)
+------------------------------
+Email:    demo@healthverse.ai
+Password: demo123
+OTP:      code shown on screen (or 123456)
+Google:   demo picker (until you add Client ID)
+
+REAL GMAIL + REAL PHONE OTP
+---------------------------
+See SETUP_REAL_AUTH.md
+1. Set GOOGLE_CLIENT_ID in backend/config.py
+2. Set MSG91 or Twilio keys + USE_DEMO_OTP = False
+3. Restart server → sign in with real Gmail / real phone SMS
+
+OFFLINE
+-------
+Open index.html in browser — full UI works without Python.
+
+No pip packages required.
